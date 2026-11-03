@@ -268,7 +268,7 @@ button{cursor:pointer}
   <header class="bar">
     <div class="brand" aria-label="Orquestrador de Rolês">
       <span class="burst" aria-hidden="true">ROLÊ<i>!</i></span>
-      <div class="titles"><h1>Orquestrador de Rolês · mapa da arquitetura</h1><small>Grupo 7 · Residência em IA · Qualidade de Vida · arquitetura planejada em 03/11/2026, ainda sem código</small></div>
+      <div class="titles"><h1>Orquestrador de Rolês · mapa da arquitetura</h1><small>Grupo 7 · Residência em IA · Qualidade de Vida · <span id="sub"></span></small></div>
     </div>
     <div class="tips" id="tips">
       <span id="tipClick"><svg viewBox="0 0 16 24" aria-hidden="true"><path class="marca" d="M8 1.2C4.3 1.2 1.6 3.8 1.6 7.4V9.6H8Z"/><rect class="corpo" x="1.6" y="1.2" width="12.8" height="21.6" rx="6.4"/><path class="corpo" d="M1.6 9.6h12.8M8 1.2v8.4"/></svg>Quase tudo é clicável!</span>
@@ -345,6 +345,15 @@ button{cursor:pointer}
 <script>
 (() => {
 'use strict';
+/* ===== DADOS DO MAPA =====
+   Tudo o que o mapa mostra está entre este comentário e "FIM DOS DADOS". O resto do arquivo
+   (estilo acima, motor do mapa abaixo) não precisa ser lido para editar.
+   Guia de edição: docs/arquitetura/AGENTS.md, no repositório do grupo. */
+
+const ATUALIZADO = '03/11/2026';
+const SUBTITULO = 'arquitetura planejada, ainda sem código';
+
+// Tamanho do canvas. Se uma zona crescer além dele, aumente aqui.
 const W = 3560, H = 1990;
 
 const ZONES = {
@@ -464,13 +473,13 @@ const CARDS = [
  pq:['Sem sigilo, ninguém conta quanto pode gastar, e o produto perde a razão de ser (RNF-02).'],
  fora:['Método de login do MVP: em aberto, porque SMS e WhatsApp têm custo.'],
  rq:['RF-42','RNF-02, RNF-11']},
-{id:'b-prazos',k:'regra',z:'servidor',x:1280,y:715,w:245,eb:'Regra',t:'Prazos e lembretes',st:'plan',
+{id:'b-prazos',k:'regra',z:'servidor',x:1280,y:750,w:245,eb:'Regra',t:'Prazos e lembretes',st:'plan',
  tx:'Toda pergunta que trava o rolê tem prazo e ação padrão. Um lembrete só.',ch:['ação padrão'],
  faz:'Disponibilidade, orçamento, voto e presença têm prazo. Quem não responde não trava: a IA segue com quem respondeu, e a pessoa ainda pode entrar até a votação. Sem orçamento informado, vale o padrão do perfil ou o menor orçamento do grupo.',
  pq:['O rolê avança sem depender de todos (RNF-06).'],
  fora:['Valores dos prazos: em aberto.'],
  rq:['RF-12, RF-29, RF-41','RNF-06']},
-{id:'b-privacidade',k:'seg',z:'servidor',x:1280,y:985,w:245,eb:'LGPD',t:'Consentimento e dados',far:'LGPD',st:'plan',
+{id:'b-privacidade',k:'seg',z:'servidor',x:1280,y:1020,w:245,eb:'LGPD',t:'Consentimento e dados',far:'LGPD',st:'plan',
  tx:'Consentimento por finalidade; ver, corrigir, exportar e apagar os próprios dados.',ch:['LGPD','18+'],
  faz:'Localização, agenda, voz e chave Pix têm consentimento separado. Ao apagar a conta, o app avisa de saldos em aberto e remove os dados pessoais; nos rolês passados a pessoa vira "ex-membro". Menores de 18 anos não se cadastram, e o que informaram não é guardado.',
  pq:['Localização, rotina, renda e rede de amizades são dados sensíveis.'],
@@ -806,6 +815,8 @@ const EDGE_KINDS = [
  ['interno','Chamada interna'],['hot','Destaque do fluxo atual'],
 ];
 
+/* ===== FIM DOS DADOS ===== Daqui para baixo é o motor do mapa: não precisa ler para editar. */
+
 /* ---------- utilidades ---------- */
 const $ = s => document.querySelector(s);
 const byId = Object.fromEntries(CARDS.map(c => [c.id, c]));
@@ -814,6 +825,9 @@ const coarse = matchMedia('(pointer: coarse)').matches;
 const stage = $('#stage'), vp = $('#vp'), world = $('#world'), svg = $('#edges');
 const drawer = $('#drawer'), decs = $('#decs'), dock = $('#dock'), legend = $('#legend');
 const NS = 'http://www.w3.org/2000/svg';
+$('#sub').textContent = `${SUBTITULO} · atualizado em ${ATUALIZADO}`;
+world.style.width = svg.style.width = W + 'px';
+world.style.height = svg.style.height = H + 'px';
 const zoneLabels = [];
 const clampK = k => Math.min(2.2, Math.max(.12, k));
 const state = {sel:null, tour:null, open:false, touched:false};
@@ -1263,8 +1277,39 @@ new ResizeObserver(() => {
   else if (!state.touched) overview(0);
   else apply();
 }).observe(stage);
+/* ---------- conferência visual: abra a página com ?checar no fim do endereço ---------- */
+function checar() {
+  const prob = [], dentro = (q, c) => q.x > c.x + 2 && q.x < c.x + c.w - 2 && q.y > c.y + 2 && q.y < c.y + c.h - 2;
+  for (let i = 0; i < CARDS.length; i++) for (let j = i + 1; j < CARDS.length; j++) {
+    const a = CARDS[i], b = CARDS[j];
+    if (a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h + 8 && b.y < a.y + a.h + 8) prob.push(`cards encostados: ${a.id} e ${b.id}`);
+  }
+  for (const c of CARDS) {
+    const z = ZONES[c.z];
+    if (c.x < z.x || c.y < z.y || c.x + c.w > z.x + z.w || c.y + c.h > z.y + z.h - 8) prob.push(`card sai da zona: ${c.id}`);
+  }
+  for (const e of EDGES) {
+    const L = e.p.getTotalLength();
+    for (let t = 8; t < L - 8; t += 6) {
+      const q = e.p.getPointAtLength(t), hit = CARDS.find(c => c.id !== e.a && c.id !== e.b && dentro(q, c));
+      if (hit) { prob.push(`seta ${e.a} → ${e.b} atravessa ${hit.id}`); break; }
+    }
+    if (e.lab) {
+      const l = e.lab, r = {x: l.offsetLeft - l.offsetWidth / 2, y: l.offsetTop - l.offsetHeight / 2, w: l.offsetWidth, h: l.offsetHeight};
+      const hit = CARDS.find(c => r.x < c.x + c.w && c.x < r.x + r.w && r.y < c.y + c.h && c.y < r.y + r.h);
+      if (hit) prob.push(`rótulo "${e.l}" cobre ${hit.id}`);
+    }
+  }
+  console[prob.length ? 'warn' : 'log']('[checar] ' + (prob.length ? prob.join('\n') : 'nenhum problema'));
+  const d = document.createElement('div');
+  d.id = 'checar'; d.setAttribute('role', 'status');
+  d.style.cssText = 'position:fixed;left:12px;bottom:12px;z-index:99;max-width:min(560px,90vw);max-height:40vh;overflow:auto;padding:10px 12px;border:2px solid var(--ink);border-radius:4px;background:var(--paper);font:600 12px/1.4 var(--mono);white-space:pre-wrap';
+  d.textContent = prob.length ? `checar: ${prob.length} problema(s)\n` + prob.join('\n') : 'checar: nenhum problema';
+  document.body.appendChild(d);
+}
 init();
 if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { relayout(); if (!state.touched) overview(0); });
+if (/[?&]checar\b/.test(location.search)) (document.fonts ? document.fonts.ready : Promise.resolve()).then(() => setTimeout(checar, 300));
 })();
 </script>
 
